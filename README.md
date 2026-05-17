@@ -8,24 +8,22 @@
 
 ## How This Was Built
 
-We built **two production FHEVM dApps** deployed live on Ethereum Sepolia and debugged every failure end to end. Then we gave Claude — the AI agent — the task of building FHEVM contracts using only documentation. It made **17 mistakes**.
+We built **two production FHEVM dApps** deployed live on Ethereum Sepolia and debugged every failure end to end. Then we gave Claude the AI agent  the task of building FHEVM contracts using only documentation. It made **17 mistakes**.
 
-Not hypothetical mistakes. Real failures. Each one with an exact error message, an exact cause, and an exact fix that was verified on a live Sepolia deployment.
-
-Those 17 mistakes — plus every other production failure encountered across both dApps — are the foundation of this SKILL.md. No other submission can claim this because no other submission actually deployed to Sepolia, watched things break, and documented what happened.
+Not hypothetical mistakes. Real failures. Each one with an exact error message, an exact cause, and an exact fix that was verified on a live Sepolia deployment, Those 17 mistakes plus every other production failure encountered across both dApps are the foundation of this SKILL.md.
 
 
 ## The 17 Mistakes Claude Makes Without This Skill File
 
-Every row below is a confirmed AI agent failure — something Claude produces when working from documentation alone. The error column is the exact message that appears. The fix column is what actually works on Sepolia.
+Every row below is a confirmed AI agent failure something Claude produces when working from documentation alone. The error column is the exact message that appears. The fix column is what actually works on Sepolia.
 
 ### SDK & Package Failures
 
-**MISTAKE #1 — Wrong package entirely**
+**MISTAKE #1 - Wrong package entirely**
 ```
 What Claude does:  npm install fhevmjs
 Error produced:    Error object shows as {} in console
-                   (Error.message is non-enumerable — disappears in JSON.stringify)
+                   (Error.message is non-enumerable disappears in JSON.stringify)
                    createInstance returns undefined silently
                    Every encrypt call throws with no visible message
 Root cause:        fhevmjs v0.6.x bundle checks window.fhevmjs which is never
@@ -39,14 +37,14 @@ What Claude does:  import { initSDK } from '@zama-fhe/relayer-sdk'
 Error produced:    TypeError: initSDK is not a function
 Root cause:        The npm package main entry is a window.relayerSDK shim for
                    script-tag injection. All exports are undefined in ESM context.
-                   No error at import time — fails silently until first use.
+                   No error at import time fails silently until first use.
 Fix:               import { initSDK } from '@zama-fhe/relayer-sdk/bundle'
 ```
 
 **MISTAKE #3 — Wrong Solidity import path**
 ```
 What Claude does:  import "fhevm/lib/TFHE.sol";  TFHE.add(a, b);
-Error produced:    DeclarationNotFound — looks like a missing contract error
+Error produced:    DeclarationNotFound looks like a missing contract error
 Root cause:        Old unscoped package uses TFHE. New scoped package uses FHE.
                    Error message gives no indication it's a version mismatch.
 Fix:               import { FHE } from "@fhevm/solidity/lib/FHE.sol";  FHE.add(a, b);
@@ -104,7 +102,7 @@ Fix:               relayerRouteVersion: 2   (/v2/keyurl is the working endpoint)
 What Claude does:  relayerUrl: 'https://gateway.sepolia.zama.ai'
                    relayerUrl: 'https://relayer.testnet.zama.ai'
 Error produced:    Impossible to fetch public key: wrong gateway url
-Root cause:        Both .ai domains return NXDOMAIN — verified against Google DNS
+Root cause:        Both .ai domains return NXDOMAIN verified against Google DNS
                    (8.8.8.8) and Cloudflare (1.1.1.1). They simply do not exist.
 Fix:               relayerUrl: 'https://relayer.testnet.zama.org'  (.org not .ai)
 ```
@@ -116,17 +114,17 @@ Error produced:    ACL contract address is not valid or empty
 Root cause:        SDK calls viem's isAddress() on every config address.
                    EIP-55 checksum is case-sensitive. One wrong character = false.
 Fix:               aclContractAddress: '0xFeE8407E2F5E3ee68AD77cAE98C434e637f516ec'
-                   (exact case required — copy this exactly)
+                   (exact case required copy this exactly)
 ```
 
 **MISTAKE #10 — Calling initSDK multiple times**
 ```
 What Claude does:  Calls initSDK() inside components or per-transaction
-Error produced:    Random WASM memory corruption — crashes vary each run
+Error produced:    Random WASM memory corruption crashes vary each run
 Root cause:        Multiple parallel initSDK calls race and corrupt internal
                    WASM memory. Symptoms are non-deterministic and impossible
                    to reproduce reliably.
-Fix:               Singleton pattern — call initSDK once on app startup, cache result
+Fix:               Singleton pattern call initSDK once on app startup, cache result
 ```
 
 ---
@@ -159,7 +157,7 @@ Fix:               input.add32(amount)  for externalEuint32
 **MISTAKE #13 — Missing FHE.allow for the value holder**
 ```
 What Claude does:  Calls FHE.allowThis() but forgets FHE.allow(value, holder)
-Error produced:    NO ERROR — this is the most dangerous failure in the stack
+Error produced:    NO ERROR this is the most dangerous failure in the stack
                    userDecrypt returns a valid response
                    The decrypted value is 0
                    The relayer silently returns meaningless data
@@ -167,7 +165,7 @@ Root cause:        The relayer verifies ACL access. Without FHE.allow(value, hol
                    the reencryption key lookup finds nothing and returns 0.
                    There is no access denied message. You only discover it when
                    you decrypt and get wrong values.
-Fix:               After every encrypted state write — three calls mandatory:
+Fix:               After every encrypted state write three calls mandatory:
                    FHE.allowThis(value);        // contract access
                    FHE.allow(value, holder);    // holder can decrypt
                    FHE.allow(value, owner());   // owner/regulator can audit
@@ -191,7 +189,7 @@ Fix:               const ACL = '0xFeE8407E2F5E3ee68AD77cAE98C434e637f516ec'
 ```
 What Claude does:  const amount = BigInt(clearValues[handle].value)
 Error produced:    TypeError: Cannot convert undefined to BigInt
-Root cause:        ClearValueType IS the value — a bigint directly.
+Root cause:        ClearValueType IS the value a bigint directly.
                    It is not a wrapper object. .value does not exist.
                    TypeScript types in the package are misleading here.
 Fix:               const amount = clearValues[handle] as bigint
@@ -200,7 +198,7 @@ Fix:               const amount = clearValues[handle] as bigint
 **MISTAKE #16 — Un-padded handles passed to userDecrypt**
 ```
 What Claude does:  Passes handle as returned by wagmi directly to userDecrypt
-Error produced:    Garbled decrypt result or relayer error — no clear message
+Error produced:    Garbled decrypt result or relayer error no clear message
 Root cause:        wagmi returns bytes32 as 0x-prefixed hex. Numeric value may be
                    shorter than 32 bytes. Un-padded handle = wrong key lookup.
 Fix:               const padded = ('0x' + BigInt(handle).toString(16).padStart(64,'0'))
@@ -233,7 +231,7 @@ find node_modules/@fhevm -name "Gateway*"
 ```
 Returns empty. The file is simply not in the package — confirmed across `@fhevm/solidity`, `@fhevm/host-contracts`, `@fhevm/mock-utils`, and `@fhevm/hardhat-plugin`.
 
-Public decryption via on-chain Gateway callback was removed from v0.11.1. All decryption — including owner/regulator audit access — happens off-chain via the Zama Relayer using `userDecrypt()`. The SKILL.md documents the correct alternative pattern and flags this version-specific behavior explicitly.
+Public decryption via on-chain Gateway callback was removed from v0.11.1. All decryption including owner/regulator audit access happens off-chain via the Zama Relayer using `userDecrypt()`. The SKILL.md documents the correct alternative pattern and flags this version-specific behavior explicitly.
 
 No documentation mentions this. You only find it by compiling.
 
@@ -243,8 +241,8 @@ No documentation mentions this. You only find it by compiling.
 
 Beyond the 17 agent mistakes, real deployment revealed:
 
-- **getLogs block range limit** — public Sepolia RPC rejects `eth_getLogs` with range >50,000 blocks. Error: `exceeded maximum block range: 50000`. Cap at 49,000.
-- **Stale Vite cache** — after changing `resolve.alias` or `optimizeDeps`, the old broken bundle is still served. Run `rm -rf node_modules/.vite` after every config change.
+- **getLogs block range limit** - public Sepolia RPC rejects `eth_getLogs` with range >50,000 blocks. Error: `exceeded maximum block range: 50000`. Cap at 49,000.
+- **Stale Vite cache** - after changing `resolve.alias` or `optimizeDeps`, the old broken bundle is still served. Run `rm -rf node_modules/.vite` after every config change.
 - **WASM silent hang** — if WASM files are missing from `public/`, `initSDK` promise never resolves. No error thrown. Three files required: `tfhe_bg.wasm`, `kms_lib_bg.wasm`, `workerHelpers.js`.
 - **FHE ready before WASM compiled** — `initSDK` can resolve before internal WASM compilation completes. Gate "FHE Ready" on `instance.generateKeypair()` succeeding, not just `instance !== null`.
 - **Hardhat compile hangs in CI** — interactive license prompt blocks non-interactive environments. Fix: `echo "n" | npx hardhat compile`.
@@ -290,7 +288,7 @@ AI agents tested             Claude (claude.ai, Claude Code)
 
 ## Demo Video
 
-[Watch →](#) *(link to be added)*
+[Watch →](#) *(https://youtube.com/shorts/b8xt9TlC8no?feature=share)*
 
 Shows Claude generating a correct FHEVM contract from a natural language prompt using only this SKILL.md — compiled with zero errors on first generation.
 

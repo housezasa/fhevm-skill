@@ -6,6 +6,14 @@
 
 ---
 
+## Demo Video - our previous link was a mistake, this is the authentic link, kindly use this youtube link instaead
+
+[Watch →](#) *(https://youtube.com/shorts/G1BlFqHKgk8)*
+
+Shows Claude generating a correct FHEVM contract from a natural language prompt using only this SKILL.md — compiled with zero errors on first generation.
+
+---
+
 ## How This Was Built
 
 We built **two production FHEVM dApps** deployed live on Ethereum Sepolia and debugged every failure end to end. Then we gave Claude the AI agent  the task of building FHEVM contracts using only documentation. It made **17 mistakes**.
@@ -283,14 +291,6 @@ Ethereum Sepolia             chainId 11155111
 Relayer                      https://relayer.testnet.zama.org (v2 endpoint)
 AI agents tested             Claude (claude.ai, Claude Code)
 ```
-
----
-
-## Demo Video
-
-[Watch →](#) *(https://youtube.com/shorts/b8xt9TlC8no?feature=share)*
-
-Shows Claude generating a correct FHEVM contract from a natural language prompt using only this SKILL.md — compiled with zero errors on first generation.
 
 ---
 
